@@ -255,4 +255,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Note**: This is research code. For production use, additional testing and validation are recommended.
+**Note**: This is research code. For production use, additional testing and validation are recommended. This software is not investment advice.
