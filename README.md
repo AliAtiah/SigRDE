@@ -131,7 +131,6 @@ SigRDE/
 │   ├── asian_d100.yaml          # Asian option config
 │   └── portfolio_hjb.yaml       # Portfolio optimization config
 ├── docs/                         # Documentation
-│   ├── QF_PAPER___Submission.pdf # Research paper
 │   └── license_setup.txt        # License information
 ├── requirements.txt              # Python dependencies
 └── README.md                     # This file
@@ -197,11 +196,7 @@ Run comprehensive ablation studies:
 python examples/ablation_script.py
 ```
 
-## 📄 Paper
-
-The research paper "Deep Signature and Neural RDE Methods for Path-Dependent Portfolio Optimization" is available in `docs/QF_PAPER___Submission.pdf`.
-
-### Citation
+## 📄 Citation
 
 If you use this code in your research, please cite:
 
@@ -213,6 +208,8 @@ If you use this code in your research, please cite:
   year={2024}
 }
 ```
+
+*Note: This work is currently under review. Please check back for the final paper reference once published.*
 
 ## 🔬 Key Results
 
