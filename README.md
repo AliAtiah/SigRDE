@@ -201,11 +201,11 @@ python examples/ablation_script.py
 If you use this code in your research, please cite:
 
 ```bibtex
-@article{alzahrani2024sigrde,
+@article{alzahrani2025sigrde,
   title={Deep Signature and Neural RDE Methods for Path-Dependent Portfolio Optimization},
   author={Alzahrani, Ali},
   journal={Quantitative Finance},
-  year={2024}
+  year={2025}
 }
 ```
 
