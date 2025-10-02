@@ -53,7 +53,7 @@ The approach leverages the mathematical structure of signatures to efficiently e
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/SigRDE.git
+git clone https://github.com/AliAtiah/SigRDE.git
 cd SigRDE
 
 # Install dependencies
