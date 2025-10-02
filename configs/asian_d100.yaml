@@ -1,0 +1,42 @@
+# Configuration for Asian basket option, d=100
+
+problem_type: asian
+dim: 100
+T: 1.0
+strike: 100.0
+
+model:
+  signature_depth: 3
+  rde_width: 128
+  rde_width_multiplier: 4
+  use_2bsde: false
+  dropout: 0.0
+  layer_norm: true
+
+solver:
+  time_steps: 100
+  num_paths: 10000
+  use_dbdp: true
+  window_size: 12
+  window_stride: 6
+  use_malliavin_z: true
+  use_malliavin_gamma: false
+
+training:
+  epochs: 500
+  batch_size: 512
+  batches_per_epoch: 100
+  learning_rate: 0.001
+  weight_decay: 0.0
+  grad_clip: 1.0
+
+# CVaR configuration for tail calibration
+cvar_quantile: 0.95
+cvar_weight: 1.5
+lambda_term: 1.0
+lambda_drift: 1.0
+lambda_2nd: 0.0
+
+validation:
+  interval: 10
+  batch_size: 1000

@@ -1,0 +1,47 @@
+# Configuration for portfolio control with HJB
+
+problem_type: portfolio
+dim: 10
+T: 1.0
+
+model:
+  signature_depth: 4
+  rde_width: 192
+  rde_width_multiplier: 4
+  use_2bsde: true  # Enable for HJB
+  dropout: 0.1
+  layer_norm: true
+
+solver:
+  time_steps: 50
+  num_paths: 5000
+  use_dbdp: true
+  window_size: 10
+  window_stride: 5
+  use_malliavin_z: true
+  use_malliavin_gamma: true  # For stable Gamma estimation
+
+training:
+  epochs: 1000
+  batch_size: 256
+  batches_per_epoch: 100
+  learning_rate: 0.0005
+  weight_decay: 1e-5
+  grad_clip: 0.5
+
+# Loss weights
+cvar_quantile: 0.95
+cvar_weight: 2.0
+lambda_term: 1.0
+lambda_drift: 1.0
+lambda_2nd: 0.2  # HJB residual weight
+
+validation:
+  interval: 20
+  batch_size: 1000
+
+# Portfolio-specific parameters
+portfolio:
+  risk_aversion: 0.5
+  transaction_cost: 0.001
+  leverage_limit: 2.0
