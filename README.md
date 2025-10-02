@@ -23,7 +23,7 @@ A PyTorch implementation of signature-based neural RDE methods for solving path-
 
 This project implements novel neural architectures combining truncated log-signature encoders with Neural RDE backbones for solving high-dimensional path-dependent problems in quantitative finance. The method is particularly effective for:
 
-- **Asian basket options** (up to 100 dimensions)
+- **Asian basket options** (up to 200 dimensions)
 - **Barrier options** with path-dependent payoffs
 - **Portfolio optimization** with HJB equations
 - **Path-dependent BSDEs** in general
@@ -35,7 +35,7 @@ The approach leverages the mathematical structure of signatures to efficiently e
 ## ✨ Key Features
 
 - **Signature-RDE Architecture**: Combines truncated log-signatures with neural RDEs
-- **High-Dimensional Support**: Tested on problems up to 100 dimensions
+- **High-Dimensional Support**: Tested on problems up to 200 dimensions
 - **Multiple Problem Types**: Asian options, barrier options, portfolio optimization
 - **Robust Training**: CVaR-based loss functions for tail risk calibration
 - **Malliavin Calculus**: Optional Malliavin derivative estimation
@@ -199,7 +199,7 @@ python examples/ablation_script.py
 
 ## 🔬 Key Results
 
-- **Scalability**: Successfully handles problems up to 100 dimensions
+- **Scalability**: Successfully handles problems up to 200 dimensions
 - **Accuracy**: Competitive performance on standard benchmarks
 - **Efficiency**: Significant speedup over traditional Monte Carlo methods
 - **Robustness**: CVaR-based training improves tail risk calibration
