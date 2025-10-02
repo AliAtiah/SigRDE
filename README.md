@@ -196,20 +196,6 @@ Run comprehensive ablation studies:
 python examples/ablation_script.py
 ```
 
-## 📄 Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@article{alzahrani2025sigrde,
-  title={Deep Signature and Neural RDE Methods for Path-Dependent Portfolio Optimization},
-  author={Alzahrani, Ali},
-  journal={Quantitative Finance},
-  year={2025}
-}
-```
-
-*Note: This work is currently under review. Please check back for the final paper reference once published.*
 
 ## 🔬 Key Results
 
@@ -266,11 +252,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - The `torchdiffeq` team for neural ODE solvers
 - The quantitative finance community for valuable feedback
 
-## 📞 Contact
-
-Ali Alzahrani - [@yourusername](https://github.com/yourusername) - your.email@example.com
-
-Project Link: [https://github.com/yourusername/SigRDE](https://github.com/yourusername/SigRDE)
 
 ---
 
