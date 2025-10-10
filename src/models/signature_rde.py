@@ -91,6 +91,10 @@ class SignatureRDEBSDE(nn.Module):
         # Layer norm for signatures if enabled
         if layer_norm:
             self.sig_norm = nn.LayerNorm(self.sig_dim)
+
+        # Temporal attention readout (learnable query)
+        self.attn_query = nn.Parameter(torch.randn(rde_hidden_dim))
+        self.attn_proj = nn.Linear(rde_hidden_dim, rde_hidden_dim, bias=False)
     
     def compute_signature(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -164,20 +168,30 @@ class SignatureRDEBSDE(nn.Module):
             adjoint=True,
             method='midpoint'
         )
+        # torchcde returns (time, batch, hidden). Make batch-first.
+        h = h.transpose(0, 1)  # (batch, time, hidden)
         
         # Decode to BSDE quantities
-        Y = self.y_head(h)
-        Z = self.z_head(h)
+        # Temporal attention context
+        q = self.attn_query.unsqueeze(0).unsqueeze(0)  # (1,1,hidden)
+        keys = self.attn_proj(h)  # (batch, time, hidden)
+        attn_logits = torch.sum(keys * q, dim=-1)  # (batch, time)
+        attn_weights = torch.softmax(attn_logits, dim=-1).unsqueeze(-1)  # (batch, time, 1)
+        context = torch.sum(attn_weights * h, dim=1)  # (batch, hidden)
+
+        Y_path = self.y_head(h)
+        Z_path = self.z_head(h)
         
         # Scale Z by sigma^{1/2} if provided
         if sigma is not None:
             # Compute Sigma^{1/2} using Cholesky
-            sigma_sqrt = torch.linalg.cholesky(
-                sigma + 1e-6 * torch.eye(dim, device=device)
-            )
-            Z = torch.matmul(Z.unsqueeze(-2), sigma_sqrt).squeeze(-2)
+            jitter = 1e-6
+            eye = torch.eye(dim, device=device)
+            sigma_sqrt = torch.linalg.cholesky(sigma + jitter * eye)
+            Z_path = torch.matmul(Z_path.unsqueeze(-2), sigma_sqrt).squeeze(-2)
         
-        outputs = {'Y': Y, 'Z': Z, 'hidden': h}
+        # Expose path-wise outputs and attention context-based terminal Y_attn
+        outputs = {'Y': Y_path, 'Z': Z_path, 'hidden': h, 'Y_attn': self.y_head(context.unsqueeze(1))}
         
         if self.use_2bsde:
             Gamma = self.gamma_head(h).view(batch_size, seq_len, dim, dim)
@@ -186,8 +200,10 @@ class SignatureRDEBSDE(nn.Module):
             outputs['Gamma'] = Gamma
         
         if not return_path:
-            # Return only terminal values
-            outputs = {k: v[:, -1] for k, v in outputs.items()}
+            # Return only terminal values (keep attention-based Y_attn as scalar)
+            term = {k: v[:, -1] for k, v in outputs.items() if k != 'Y_attn'}
+            term['Y_attn'] = outputs['Y_attn'].squeeze(1)
+            outputs = term
             
         return outputs
 
@@ -233,6 +249,12 @@ class RDEFunc(nn.Module):
         layers.append(nn.Linear(in_dim, hidden_dim * (input_dim + 1)))
         
         self.net = nn.Sequential(*layers)
+        # Time FiLM conditioning
+        self.time_proj = nn.Sequential(
+            nn.Linear(2, hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, 2 * hidden_dim)
+        )
     
     def forward(self, t, z):
         """
@@ -245,7 +267,12 @@ class RDEFunc(nn.Module):
         Returns:
             Vector field output
         """
-        out = self.net(z)
+        # Time features (sin, cos)
+        t_feat = torch.stack([torch.sin(t), torch.cos(t)], dim=0).unsqueeze(0).expand(z.shape[0], -1)
+        gamma_beta = self.time_proj(t_feat)
+        gamma, beta = gamma_beta.chunk(2, dim=-1)
+        z_cond = (1 + torch.tanh(gamma)) * z + beta
+        out = self.net(z_cond)
         return out.view(z.shape[0], self.hidden_dim, self.input_dim + 1)
 
 
@@ -380,6 +407,39 @@ class MultiWindowSignatureRDE(nn.Module):
         """
         Aggregate outputs from overlapping windows.
         """
-        # Implementation of window aggregation
-        # (weighted averaging for overlapping regions)
-        pass  # Simplified for brevity
+        if len(outputs) == 0:
+            raise ValueError("No window outputs to aggregate")
+
+        sample = outputs[0]
+        device = sample['Y'].device
+        batch_size = sample['Y'].shape[0]
+
+        agg: Dict[str, torch.Tensor] = {}
+        count = torch.zeros(batch_size, seq_len, 1, device=device)
+
+        keys = ['Y', 'Z'] + ([ 'Gamma' ] if 'Gamma' in sample else [])
+        for k in keys:
+            shape_tail = sample[k].shape[2:]
+            agg[k] = torch.zeros(batch_size, seq_len, *shape_tail, device=device)
+
+        # We need the same iteration as in forward; recompute positions
+        # Since we don't store starts/ends, infer from concatenation lengths by tracking
+        # Assume constant window_size and stride
+        # Build start indices from cumulative placement
+        # Safer: pass starts via storing in dicts; here we infer by stepping
+        # We'll recompute using self.window_size and self.window_stride
+        pos = 0
+        for idx, out in enumerate(outputs):
+            start = idx * self.window_stride
+            end = min(start + out['Y'].shape[1], seq_len)
+            length = end - start
+            sl = slice(start, end)
+            for k in keys:
+                agg[k][:, sl] += out[k][:, :length]
+            count[:, sl] += 1
+
+        count = torch.clamp(count, min=1.0)
+        for k in keys:
+            agg[k] = agg[k] / count
+
+        return agg

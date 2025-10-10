@@ -29,10 +29,11 @@ class BSDESolver:
         self.model = model
         self.config = config
         
-        # Extract key parameters
+        # Extract key parameters (support nested solver config)
         self.dim = config['dim']
-        self.num_paths = config['num_paths']
-        self.time_steps = config['time_steps']
+        self.time_steps = config.get('time_steps', config.get('solver', {}).get('time_steps'))
+        if self.time_steps is None:
+            raise KeyError("time_steps must be provided in config['time_steps'] or config['solver']['time_steps']")
         self.dt = config['T'] / self.time_steps
         
         # CVaR parameters
@@ -78,7 +79,7 @@ class BSDESolver:
         Y_T = outputs['Y'][:, -1]
         g_T = terminal_g(paths[:, -1])
         
-        terminal_error = (Y_T - g_T) ** 2
+        terminal_error = (Y_T - g_T)  # raw error
         losses['terminal'] = self._cvar_tilted_loss(terminal_error)
         
         # 2. BSDE drift residual
@@ -89,24 +90,15 @@ class BSDESolver:
         dW = torch.randn(batch_size, seq_len - 1, self.dim, device=device)
         dW = dW * np.sqrt(self.dt)
         
-        drift_residual = 0
+        drift_terms = []
+        gammas = outputs['Gamma'] if 'Gamma' in outputs else None
         for t in range(seq_len - 1):
-            # BSDE dynamics
-            f_t = driver_f(
-                t * self.dt,
-                paths[:, t],
-                Y[:, t],
-                Z[:, t],
-                outputs.get('Gamma', [None])[t] if 'Gamma' in outputs else None
-            )
-            
-            # Y_{t+1} - Y_t + f dt - Z dW
+            gamma_t = gammas[:, t] if gammas is not None else None
+            f_t = driver_f(t * self.dt, paths[:, t], Y[:, t], Z[:, t], gamma_t)
             dY_pred = -f_t * self.dt + torch.sum(Z[:, t] * dW[:, t], dim=-1, keepdim=True)
             dY_actual = Y[:, t + 1] - Y[:, t]
-            
-            drift_residual += torch.mean((dY_actual - dY_pred) ** 2) / self.dt
-        
-        losses['drift'] = drift_residual / (seq_len - 1)
+            drift_terms.append(((dY_actual - dY_pred) ** 2) / self.dt)
+        losses['drift'] = torch.mean(torch.stack([term.mean() for term in drift_terms]))
         
         # 3. Second-order/HJB loss (if applicable)
         if hjb_h is not None and 'Gamma' in outputs:
@@ -223,11 +215,16 @@ class BSDESolver:
         Returns:
             Dictionary of loss values
         """
-        # Forward pass
-        outputs = self.model(paths, sigma, return_path=True)
-        
-        # Compute losses
-        losses = self.compute_losses(paths, outputs, driver_f, terminal_g, hjb_h)
+        # Forward + losses (supports AMP)
+        use_amp = self.config.get('training', {}).get('amp', False)
+        device_type = 'cuda' if paths.is_cuda else 'cpu'
+        if use_amp and device_type == 'cuda':
+            with torch.autocast(device_type=device_type, dtype=torch.float16):
+                outputs = self.model(paths, sigma, return_path=True)
+                losses = self.compute_losses(paths, outputs, driver_f, terminal_g, hjb_h)
+        else:
+            outputs = self.model(paths, sigma, return_path=True)
+            losses = self.compute_losses(paths, outputs, driver_f, terminal_g, hjb_h)
         
         # Combine losses
         total_loss = (
@@ -246,4 +243,4 @@ class BSDESolver:
         
         losses['total'] = total_loss
         
-        return {k: v.item() for k, v in losses.items()}
+        return losses
