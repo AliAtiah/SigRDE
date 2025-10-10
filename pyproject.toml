@@ -1,0 +1,18 @@
+[project]
+name = "sigrde"
+version = "0.1.0"
+description = "Signature-RDE BSDE solver"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+sigrde = "src.cli:main"
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+
+

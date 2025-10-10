@@ -71,7 +71,22 @@ pip install -r requirements.txt
 
 ## 🏃‍♂️ Quick Start
 
-### Basic Usage
+### CLI
+
+Install the package editable and use the CLI:
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+
+# Train with a config
+sigrde train --config configs/default.yaml --epochs 5
+
+# Evaluate a checkpoint
+sigrde eval --config configs/default.yaml --checkpoint checkpoints/last.pt
+```
+
+### Basic Usage (Python API)
 
 ```python
 import torch
@@ -211,14 +226,14 @@ python examples/ablation_script.py
 The project follows PEP 8 style guidelines. Use the provided tools:
 
 ```bash
-# Format code
-black src/ examples/
+# Install pre-commit hooks
+pre-commit install
 
-# Lint code
-flake8 src/ examples/
+# Format & lint
+black . && isort . && flake8 .
 
-# Type checking
-mypy src/
+# Run tests
+pytest -q
 ```
 
 ### Testing
